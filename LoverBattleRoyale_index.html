@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Lover Battle Royale</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#090913;font-family:Inter,system-ui,Arial;color:#fff;touch-action:none}canvas{display:block;width:100vw;height:100vh;background:#13211b;touch-action:none}.hud{position:fixed;inset:0;pointer-events:none}.top{position:absolute;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;gap:10px}.pill{background:#11111dcc;border:1px solid #ffffff22;border-radius:14px;padding:9px 12px;backdrop-filter:blur(8px);box-shadow:0 4px 18px #0005}.brand{font-weight:900;letter-spacing:.5px}.stats{display:flex;gap:8px}.center{position:absolute;top:72px;left:50%;transform:translateX(-50%);text-align:center;text-shadow:0 3px 12px #000}.state{font-size:15px;font-weight:800}.timer{font-size:30px;font-weight:1000}.bottom{position:absolute;left:14px;right:14px;bottom:14px;display:flex;justify-content:space-between;align-items:end}.health{width:230px}.bar{height:12px;background:#0009;border-radius:8px;overflow:hidden;border:1px solid #fff2}.fill{height:100%;width:100%;background:#ff3d8d}.partner{margin-top:7px;font-size:12px;color:#ffb9d5}.controls{display:flex;gap:9px;pointer-events:auto}.btn{width:64px;height:64px;border:1px solid #fff3;background:#141421d9;color:#fff;border-radius:50%;font-weight:900;font-size:13px;box-shadow:0 6px 20px #0007}.btn:active{transform:scale(.94);background:#ff2d7a}.move{position:absolute;left:20px;bottom:22px;width:130px;height:130px;border-radius:50%;background:#ffffff12;border:1px solid #fff2;pointer-events:auto}.stick{position:absolute;left:42px;top:42px;width:46px;height:46px;border-radius:50%;background:#fff3;border:1px solid #fff5}.overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(#080812aa,#080812dd);z-index:5}.card{width:min(520px,90vw);padding:28px;border-radius:24px;background:#11111df2;border:1px solid #ffffff20;box-shadow:0 20px 80px #000}.title{font-size:42px;line-height:1;font-weight:1000;color:#ff4c9a;text-shadow:0 0 30px #ff1f77aa}.sub{color:#ddd;margin:12px 0 20px}.start{width:100%;padding:15px;border:0;border-radius:14px;background:#ff2d7a;color:#fff;font-weight:1000;font-size:17px}.help{font-size:12px;color:#aaa;margin-top:12px;line-height:1.5}.hidden{display:none!important}.toast{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);font-size:28px;font-weight:1000;text-align:center;text-shadow:0 4px 20px #000;opacity:0;transition:.2s}.toast.show{opacity:1}.cross{position:absolute;width:20px;height:20px;left:50%;top:50%;transform:translate(-50%,-50%);opacity:.75}.cross:before,.cross:after{content:"";position:absolute;background:#fff;border-radius:2px}.cross:before{width:2px;height:20px;left:9px}.cross:after{height:2px;width:20px;top:9px}
+</style></head>
+<body>
+<canvas id="game"></canvas>
+<div class="hud">
+  <div class="top"><div class="pill brand">💗 LOVER BATTLE ROYALE</div><div class="stats"><div class="pill">👥 <span id="alive">25</span></div><div class="pill">🏆 <span id="kills">0</span></div></div></div>
+  <div class="center"><div class="state" id="state">LOBBY</div><div class="timer" id="timer">READY</div></div>
+  <div class="cross"></div>
+  <div class="toast" id="toast"></div>
+  <div class="bottom"><div class="health"><div class="bar"><div class="fill" id="hp"></div></div><div class="partner">❤️ Lover: <b id="partner">Maya</b> · <span id="love">100</span>% bond</div></div><div class="controls"><button class="btn" id="loveBtn">❤️<br>LOVE</button><button class="btn" id="reviveBtn">🫶<br>REVIVE</button><button class="btn" id="shootBtn">🔫<br>FIRE</button></div></div>
+  <div class="move" id="move"><div class="stick" id="stick"></div></div>
+</div>
+<div class="overlay hidden" id="end"><div class="card"><div class="title">MATCH OVER</div><div class="sub" id="result">Ready?</div><button class="start" id="again">PLAY AGAIN</button></div></div><div class="overlay" id="menu"><div class="card"><div class="title">LOVER<br>BATTLE ROYALE</div><div class="sub">Drop into <b>Heart Island</b>. Fight, survive, protect your lover, and be the last duo standing.</div><button class="start" id="start">PLAY MATCH</button><div class="help">Desktop: WASD / arrows to move · mouse to aim · click to fire · E revive · L love boost<br>Mobile: drag the left stick · FIRE / REVIVE / LOVE buttons</div></div></div>
+<script>
+const c=document.getElementById('game'),ctx=c.getContext('2d');let W,H,dpr;function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;c.width=W*dpr;c.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}addEventListener('resize',resize);resize();
+const $=id=>document.getElementById(id);let running=false,phase='lobby',phaseT=0,last=0,kills=0,toastT=0,keys={},mouse={x:0,y:0,down:false};
+let player,lover,bots=[],bullets=[],loot=[],particles=[],zone;
+function rand(a,b){return Math.random()*(b-a)+a}function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function reset(){kills=0;phase='countdown';phaseT=4;player={x:0,y:0,r:18,hp:100,max:100,speed:210,cd:0};lover={x:-55,y:35,r:16,hp:100,max:100,down:false,revive:0};bots=[];bullets=[];loot=[];particles=[];zone={x:0,y:0,r:1250,target:1250};for(let i=0;i<24;i++)bots.push({x:rand(-1050,1050),y:rand(-750,750),r:16,hp:60,max:60,alive:true,cd:rand(.2,1.5),speed:rand(70,105),name:'Rival '+(i+1)});for(let i=0;i<55;i++)loot.push({x:rand(-1100,1100),y:rand(-800,800),type:Math.random()<.55?'ammo':'med',taken:false});updateUI()}
+function say(t){$('toast').textContent=t;$('toast').classList.add('show');toastT=1.5}
+function updateUI(){let alive=bots.filter(b=>b.alive).length+1+(!lover.down?0:0);$('alive').textContent=alive;$('kills').textContent=kills;$('hp').style.width=clamp(player.hp,0,100)+'%';$('love').textContent=Math.round(lover.hp);$('state').textContent=phase==='countdown'?'DROP IN':phase==='active'?'HEART ISLAND':phase==='finished'?'MATCH OVER':'LOBBY';$('timer').textContent=phase==='countdown'?Math.ceil(phaseT):phase==='active'?Math.max(0,Math.floor(phaseT))+'s':phase==='finished'?'': 'READY'}
+function worldToScreen(x,y){return{x:x-player.x+W/2,y:y-player.y+H/2}}
+function shoot(from,tx,ty,enemy=false){let a=Math.atan2(ty-from.y,tx-from.x);bullets.push({x:from.x+Math.cos(a)*22,y:from.y+Math.sin(a)*22,vx:Math.cos(a)*(enemy?420:650),vy:Math.sin(a)*(enemy?420:650),life:1.5,enemy,dmg:enemy?8:30})}
+function fire(){
+if(!running||phase!=='active'||player.cd>0||player.hp<=0)return;
+player.cd=.24;
+let tx,ty;
+if(mouse.x||mouse.y){tx=mouse.x+player.x-W/2;ty=mouse.y+player.y-H/2;}
+else{
+  const b=nearestBot();
+  if(b){tx=b.x;ty=b.y;} else {tx=player.x+1;ty=player.y;}
+}
+shoot(player,tx,ty,false);
+for(let i=0;i<5;i++)particles.push({x:player.x,y:player.y,vx:rand(-70,70),vy:rand(-70,70),life:.25})
+}
+function nearestBot(){let best=null,bd=1e9;for(const b of bots)if(b.alive){let d=dist(player,b);if(d<bd){bd=d;best=b}}return best}
+function update(dt){if(!running)return;if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').classList.remove('show')}
+if(phase==='countdown'){phaseT-=dt;if(phaseT<=0){phase='active';phaseT=360;player.x=0;player.y=0;say('💗 Protect your lover!');}updateUI();return}
+if(phase!=='active')return;phaseT-=dt;player.cd=Math.max(0,player.cd-dt);let dx=(keys.d||keys.ArrowRight?1:0)-(keys.a||keys.ArrowLeft?1:0),dy=(keys.s||keys.ArrowDown?1:0)-(keys.w||keys.ArrowUp?1:0);let mag=Math.hypot(dx,dy)||1;player.x+=dx/mag*player.speed*dt;player.y+=dy/mag*player.speed*dt;
+// lover follows
+let ang=Math.atan2(player.y-lover.y,player.x-lover.x),ld=dist(player,lover);if(!lover.down&&ld>65){lover.x+=Math.cos(ang)*100*dt;lover.y+=Math.sin(ang)*100*dt}
+// pickup loot
+for(const l of loot)if(!l.taken&&dist(player,l)<30){l.taken=true;if(l.type==='med'){player.hp=clamp(player.hp+20,0,100);say('🩹 Medkit +20')}else{say('🎒 Ammo collected');}}
+// zone
+if(phaseT<300){zone.target=clamp(1250-(300-phaseT)*3.2,240,1250);zone.r+=(zone.target-zone.r)*dt*.25}if(dist(player,zone)>zone.r)player.hp-=10*dt;
+// bots
+for(const b of bots)if(b.alive){b.cd-=dt;let d=dist(b,player);if(d<520){let a=Math.atan2(player.y-b.y,player.x-b.x);if(d>250){b.x+=Math.cos(a)*b.speed*dt;b.y+=Math.sin(a)*b.speed*dt}if(b.cd<=0){b.cd=rand(.7,1.5);shoot(b,player.x,player.y,true)}}else{b.x+=Math.cos(performance.now()/800+b.x)*12*dt;b.y+=Math.sin(performance.now()/900+b.y)*12*dt}if(dist(b,zone)>zone.r)b.hp-=5*dt}
+// bullets
+for(let i=bullets.length-1;i>=0;i--){let q=bullets[i];q.x+=q.vx*dt;q.y+=q.vy*dt;q.life-=dt;let hit=false;if(!q.enemy){for(const b of bots)if(b.alive&&dist(q,b)<b.r+5){b.hp-=q.dmg;hit=true;if(b.hp<=0){b.alive=false;kills++;say('💥 '+b.name+' eliminated');for(let j=0;j<12;j++)particles.push({x:b.x,y:b.y,vx:rand(-120,120),vy:rand(-120,120),life:.5})}break}}else if(dist(q,player)<player.r+5){player.hp-=q.dmg;hit=true}if(hit||q.life<=0)bullets.splice(i,1)}
+// love button creates bond regen naturally
+lover.hp=clamp(lover.hp+dt*1.5,0,100);if(player.hp<=0){phase='finished';$('result').textContent='💔 You were eliminated. Kills: '+kills;$('end').classList.remove('hidden');say('💔 You were eliminated');}let remaining=bots.filter(b=>b.alive).length;if(remaining===0&&phase==='active'){phase='finished';$('result').textContent='🏆 You and Maya won! Kills: '+kills;$('end').classList.remove('hidden');say('🏆 CHAMPIONS!')}if(phaseT<=0){phase='finished';$('result').textContent='⏰ Time is up. Kills: '+kills;$('end').classList.remove('hidden');say('⏰ Match complete');}updateUI()}
+function draw(){ctx.clearRect(0,0,W,H);ctx.fillStyle='#173426';ctx.fillRect(0,0,W,H);let grid=70;ctx.strokeStyle='#ffffff09';ctx.lineWidth=1;for(let x=-W;x<W*2;x+=grid){let sx=x-(player?player.x%grid:0);ctx.beginPath();ctx.moveTo(sx,0);ctx.lineTo(sx,H);ctx.stroke()}for(let y=-H;y<H*2;y+=grid){let sy=y-(player?player.y%grid:0);ctx.beginPath();ctx.moveTo(0,sy);ctx.lineTo(W,sy);ctx.stroke()}
+// landmarks
+for(const p of [{x:500,y:-300,t:'💗 HEART CASTLE'},{x:-550,y:-250,t:'🌴 PARADISE BEACH'},{x:650,y:430,t:'🏙️ LOVER CITY'},{x:-650,y:480,t:'🌲 REDWOOD FOREST'}]){let s=worldToScreen(p.x,p.y);if(s.x>-250&&s.x<W+250&&s.y>-100&&s.y<H+100){ctx.font='bold 16px system-ui';ctx.fillStyle='#ffffffaa';ctx.fillText(p.t,s.x-70,s.y)}}
+if(zone){let z=worldToScreen(zone.x,zone.y);ctx.save();ctx.fillStyle='#b0005030';ctx.beginPath();ctx.rect(0,0,W,H);ctx.arc(z.x,z.y,zone.r,0,Math.PI*2,true);ctx.fill('evenodd');ctx.strokeStyle='#ff4c9a99';ctx.lineWidth=4;ctx.beginPath();ctx.arc(z.x,z.y,zone.r,0,Math.PI*2);ctx.stroke();ctx.restore()}
+for(const l of loot)if(!l.taken){let s=worldToScreen(l.x,l.y);if(s.x>-20&&s.x<W+20&&s.y>-20&&s.y<H+20){ctx.font='20px serif';ctx.fillText(l.type==='med'?'🩹':'🎒',s.x-10,s.y+7)}}
+for(const b of bots)if(b.alive){let s=worldToScreen(b.x,b.y);ctx.fillStyle='#4aa8ff';ctx.beginPath();ctx.arc(s.x,s.y,b.r,0,7);ctx.fill();ctx.fillStyle='#0008';ctx.fillRect(s.x-18,s.y-b.r-10,36,4);ctx.fillStyle='#ff5353';ctx.fillRect(s.x-18,s.y-b.r-10,36*(b.hp/b.max),4)}
+if(!lover.down){let s=worldToScreen(lover.x,lover.y);ctx.fillStyle='#ff69a8';ctx.beginPath();ctx.arc(s.x,s.y,lover.r,0,7);ctx.fill();ctx.font='18px serif';ctx.fillText('💗',s.x-10,s.y-22)}let s=worldToScreen(player.x,player.y);ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(s.x,s.y,player.r,0,7);ctx.fill();ctx.fillStyle='#ff2d7a';ctx.beginPath();ctx.arc(s.x,s.y-7,7,Math.PI,0);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+for(const q of bullets){let s=worldToScreen(q.x,q.y);ctx.fillStyle=q.enemy?'#ffcf54':'#fff';ctx.beginPath();ctx.arc(s.x,s.y,3,0,7);ctx.fill()}for(const p of particles){let s=worldToScreen(p.x,p.y);ctx.globalAlpha=Math.max(0,p.life*2);ctx.fillStyle='#ff4c9a';ctx.fillRect(s.x,s.y,4,4);ctx.globalAlpha=1}}
+function loop(t){let dt=Math.min(.033,(t-last)/1000||0);last=t;update(dt);if(player)draw();requestAnimationFrame(loop)}requestAnimationFrame(loop);
+addEventListener('keydown',e=>{keys[e.key]=true;if(e.key==='e'){if(lover.down){lover.down=false;lover.hp=60;say('🫶 Lover revived!')}}if(e.key==='l'){lover.hp=clamp(lover.hp+20,0,100);say('❤️ Love boost!')}});addEventListener('keyup',e=>keys[e.key]=false);addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY});addEventListener('mousedown',()=>{mouse.down=true;fire()});addEventListener('mouseup',()=>mouse.down=false);setInterval(()=>{if(mouse.down)fire()},80);
+$('start').onclick=()=>{$('menu').classList.add('hidden');$('end').classList.add('hidden');running=true;reset()};$('again').onclick=()=>{$('end').classList.add('hidden');running=true;reset()};$('shootBtn').onpointerdown=e=>{e.preventDefault();fire()};$('reviveBtn').onpointerdown=e=>{e.preventDefault();if(lover.down){lover.down=false;lover.hp=60;say('🫶 Lover revived!')}else say('❤️ Maya is already up')};$('loveBtn').onpointerdown=e=>{e.preventDefault();lover.hp=clamp(lover.hp+25,0,100);say('❤️ Love boost +25')};
+let move=$('move'),stick=$('stick'),active=false;function mv(e){let r=move.getBoundingClientRect(),x=e.clientX-r.left-r.width/2,y=e.clientY-r.top-r.height/2,m=Math.hypot(x,y),lim=48;if(m>lim){x=x/m*lim;y=y/m*lim}stick.style.transform=`translate(${x}px,${y}px)`;keys.a=x<-12;keys.d=x>12;keys.w=y<-12;keys.s=y>12}move.onpointerdown=e=>{active=true;move.setPointerCapture(e.pointerId);mv(e)};move.onpointermove=e=>{if(active)mv(e)};move.onpointerup=()=>{active=false;stick.style.transform='';keys.a=keys.d=keys.w=keys.s=false};
+</script></body></html>
